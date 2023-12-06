@@ -1,0 +1,2 @@
+# CompPhotographyFinalProject
+ Photo editing software
