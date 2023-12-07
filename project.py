@@ -210,8 +210,10 @@ def resetLayout1(width, height):
              sg.Button('Resize', size=(10, 2)), 
              sg.Button('Paint', size=(10, 2)),
              sg.Button('Scratch and Dust', key='-scratch-', size=(10, 2)),
+             sg.Button('Double Exposure', key='-dexposure-', size=(10, 2)),
+
              sg.Button('Save Image', key='-save-', size=(10, 2)),
-             sg.Button('Load Image', key='-load-', size=(10, 2))
+             sg.Button('Load Image', key='-load-', size=(10, 2)),
             ],
             [sg.Slider(range=(0, 15), default_value=0, orientation='h', size=(10, 30), key='-SLIDER1-'), sg.Button('Apply averaging Filter')],
             [sg.Slider(range=(0, 15), default_value=0, orientation='h', size=(10, 30), key='-SLIDER2-'), sg.Button('Apply Gaussian Filter')],
@@ -307,6 +309,8 @@ def paint(image, num_pixels=10000, stroke_length_range=(25, 30), stroke_width_ra
         color = tuple(map(int, image[y, x]))
         cv2.line(image, (start_x, start_y), (end_x, end_y), color, stroke_width)
     return image
+
+
 
 
 def display_image(width, height, np_image, beforeImage, originalImage):
@@ -515,12 +519,178 @@ def display_image(width, height, np_image, beforeImage, originalImage):
                 if event == 'Quit':
                     FilterPopUp.close()
                     display_image(width, height, np_image, beforeImage, originalImage)
-                       
+        if event == '-dexposure-':
+            
+            window.close()
+            # Define the layout
+            #sg.Image('path/to/placeholder.png', key='-PERSON_IMAGE-', size=(200, 200))
+            #sg.Image('path/to/placeholder.png', key='-PERSON_IMAGE-', size=(200, 200))
+            # Attempt to load the placeholder images
+            placeholder_size = (200, 200)  # Width, Height
+            # Use the function for both person and background images
+            person = cv2.imread('dexposure/place_holder_person.jpg', cv2.IMREAD_COLOR)
+            background = cv2.imread('dexposure/place_holder_background.jpg', cv2.IMREAD_COLOR)
+            person = cv2.cvtColor(person, cv2.COLOR_BGR2RGB)
+            background = cv2.cvtColor(background, cv2.COLOR_BGR2RGB)
+            resized_image_person = resize_image_aspect_ratio(person,height=250,width=250)  # Resize by width, maintaining aspect ratio
+            resized_image_background = resize_image_aspect_ratio(background,height=250,width=250)  # Resize by width, maintaining aspect ratio
+
+            person_image_data = np_im_to_data(resized_image_person)
+            background_image_data = np_im_to_data(resized_image_background)
+                # Update the layout with the image data
+            layout = [
+                    [sg.Button('Load Person'), sg.Button('Load Background'), sg.Button('Double Exposure')],
+                    [sg.Image(data=person_image_data, key='-PERSON_IMAGE-'),
+                     sg.Image(data=background_image_data, key='-BACKGROUND_IMAGE-')]
+                    ]
+                
+
+            # Create the window
+            #window['-PERSON_IMAGE-'].update(data=person_image_data)
+            #window['-BACKGROUND_IMAGE-'].update(data=background_image_data)
+
+            window = sg.Window('Double Exposure App', layout,resizable=True)
+            
+            # Event loop9
+            while True:
+                event, values = window.read()
+            
+                if event == sg.WIN_CLOSED:
+                    break
+                elif event == 'Load Person':
+                    # Implement functionality to load person image
+                    # For example, using sg.popup_get_file() to choose a file
+                    # Then update the '-PERSON_IMAGE-' element with the chosen image
+                    pass
+                elif event == 'Load Background':
+                    # Implement functionality to load background image
+                    # Similar to the above
+                    pass
+                elif event == 'Double Exposure':
+                    
+                    # Implement the double exposure effect
+                    person_transparent = automatic_grabcut_with_transparency(person)
+                    silhouette_image_path = 'silhouette_centered.png'  # Update this path if needed
+                    output_feature_preserved_path = 'doubleExposure.png'  # Update this path if needed
+                    double_exposure(person_transparent, background, silhouette_image_path, output_feature_preserved_path)
+                    
+                    # Read the resulting image
+                    double_exposure_image = cv2.imread(output_feature_preserved_path)
+                    double_exposure_image = cv2.cvtColor(double_exposure_image, cv2.COLOR_BGR2RGB)  # Ensure it's in RGB
+                    
+                    # Convert the image to Image data for 
+                    resized_image_dexposure = resize_image_aspect_ratio(double_exposure_image,height=250,width=250)  # Resize by width, maintaining aspect ratio
+
+                    double_exposure_image_data = np_im_to_data(resized_image_dexposure)
+                    layout = [
+                            [sg.Button('Load Person'), sg.Button('Load Background'), sg.Button('Double Exposure')],
+                            [sg.Image(data=person_image_data, key='-PERSON_IMAGE-'),
+                             sg.Image(data=background_image_data, key='-BACKGROUND_IMAGE-'),
+                             sg.Image(data=double_exposure_image_data, key='-DOUBLE_EXPOSURE_IMAGE-')],
+                             
+
+                            ]
+                    window.close()
+
+                    # Update the layout with the new image
+                    window = sg.Window('Double Exposure App', layout, finalize=True)
+
+            
         if event == sg.WINDOW_CLOSED or event == 'Exit':
             break
 
     window.close() 
 
+def automatic_grabcut_with_transparency(person, iterations=5, transparency_factor=0.5):
+    # Convert to grayscale and apply Gaussian blur for noise reduction
+    gray = cv2.cvtColor(person, cv2.COLOR_BGR2GRAY)
+    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+
+    # Use Otsu's method to find a threshold for Canny automatically
+    ret, _ = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    lower = float(0.5 * ret)
+    upper = float(ret)
+
+    # Use Canny edge detection
+    edges = cv2.Canny(blurred, lower, upper)
+
+    # Dilate the edges
+    kernel = np.ones((5, 5), np.uint8)
+    dilated_edges = cv2.dilate(edges, kernel, iterations=1)
+
+    # Initialize grabCut's mask and apply grabCut
+    mask = np.zeros(person.shape[:2], np.uint8)
+    x, y, w, h = cv2.boundingRect(dilated_edges)
+    rect = (x, y, w, h)
+    bgdModel = np.zeros((1, 65), np.float64)
+    fgdModel = np.zeros((1, 65), np.float64)
+    cv2.grabCut(person, mask, rect, bgdModel, fgdModel, iterations, cv2.GC_INIT_WITH_RECT)
+
+    # Modify the mask to create a binary mask of the foreground and apply transparency
+    mask = np.where((mask == 2) | (mask == 0), 0, 1).astype('uint8')
+    person_rgba = cv2.cvtColor(person, cv2.COLOR_BGR2BGRA)
+    alpha_channel = mask * 255
+    alpha_channel = (alpha_channel * transparency_factor).astype(person_rgba.dtype)
+    person_rgba[:, :, 3] = alpha_channel
+
+    # Save the silhouette image
+    silhouette_path = 'silhouette_centered.jpeg'
+    cv2.imwrite(silhouette_path, person_rgba)
+
+
+    return person_rgba
+
+def double_exposure(person, background, silhouette_path, output_path):
+    # Load the silhouette and check if it's loaded correctly
+    silhouette = cv2.imread(silhouette_path, cv2.IMREAD_UNCHANGED)
+    if silhouette is None:
+        raise ValueError("Silhouette image not loaded correctly.")
+
+    # Resize images to match the size of the silhouette, only if necessary
+    if person.shape[:2] != silhouette.shape[:2]:
+        person = cv2.resize(person, (silhouette.shape[1], silhouette.shape[0]), interpolation=cv2.INTER_AREA)
+    if background.shape[:2] != silhouette.shape[:2]:
+        background = cv2.resize(background, (silhouette.shape[1], silhouette.shape[0]), interpolation=cv2.INTER_AREA)
+
+    # Extract the alpha channel from the silhouette and apply Gaussian blurring
+    alpha_channel = silhouette[:, :, 3].astype(float) / 255
+    blurred_gradient_mask = cv2.GaussianBlur(alpha_channel, (7, 7), 0)
+    blurred_gradient_mask = np.clip(blurred_gradient_mask + 0.3, 0, 1)
+
+    # Create a composite image using vectorized operations
+    composite_image = np.zeros_like(silhouette)
+    composite_image[..., :3] = blurred_gradient_mask[..., None] * background[..., :3] + \
+                               (1 - blurred_gradient_mask[..., None]) * person[..., :3]
+    composite_image[..., 3] = silhouette[..., 3]  # Preserve the original silhouette alpha channel
+
+    # Save the resulting image
+    cv2.imwrite(output_path, composite_image)
+    
+def resize_image_aspect_ratio(image, width=None, height=None, inter=cv2.INTER_AREA):
+    # Initialize the dimensions of the image to be resized and grab the image size
+    dim = None
+    (h, w) = image.shape[:2]
+
+    # If both the width and height are None, then return the original image
+    if width is None and height is None:
+        return image
+
+    # Check to see if the width is None
+    if width is None:
+        # Calculate the ratio of the height and construct the dimensions
+        r = height / float(h)
+        dim = (int(w * r), height)
+    else:
+        # Calculate the ratio of the width and construct the dimensions
+        r = width / float(w)
+        dim = (width, int(h * r))
+
+    # Resize the image
+    resized = cv2.resize(image, dim, interpolation=inter)
+
+    # Return the resized image
+    return resized    
+    
 
 ##Main
 def main():
