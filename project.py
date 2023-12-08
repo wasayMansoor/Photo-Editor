@@ -781,10 +781,7 @@ def display_image(width, height, np_image, beforeImage, originalImage):
                     resized_mask = resize_with_padding(cut_mask * 255, target_size[0], target_size[1])
 
                 
-                    # Step 3: Overlay Mask on Background
-                    overlay_mask_on_background(background, resized_mask, "final_result.png", alpha=0.5)
-                    
-                    # Step 4: Invert the mask
+                    # Step 3: Invert the mask
                     print("Shape of double_exposure:", background.shape)
                     print("Shape of double_exposure:", resized_mask.shape)
 
