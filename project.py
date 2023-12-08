@@ -297,7 +297,7 @@ def resetLayout5(width, height):
          sg.Button('Apply'),
          sg.Button('Quit')
         ],
-        [sg.Text('Grain Intensity:', size=(10, 1)), sg.Slider(range=(0,100), default_value=0, orientation='h',size=(50,30), key='-GIntensity-')],
+        [sg.Text('Grain Intensity:', size=(15, 1)), sg.Slider(range=(0,100), default_value=0, orientation='h',size=(50,30), key='-GIntensity-')],
     ]
     return layout5
 
@@ -343,9 +343,6 @@ def paint(image, num_pixels=10000, stroke_length_range=(25, 30), stroke_width_ra
         color = tuple(map(int, image[y, x]))
         cv2.line(image, (start_x, start_y), (end_x, end_y), color, stroke_width)
     return image
-
-
-
 
 def display_image(width, height, np_image, beforeImage, originalImage):
     image_data = np_im_to_data(np_image)
@@ -537,8 +534,6 @@ def display_image(width, height, np_image, beforeImage, originalImage):
                 if event == 'Quit':
                     FilterPopUp.close()
                     display_image(width, height, np_image, beforeImage, originalImage)
-
-
         
         if event == '-scratch-':
             window.close()
