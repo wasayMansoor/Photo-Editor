@@ -174,7 +174,18 @@ def add_scratches_and_dust(original_image, overlay_image_path, opacity, angle):
     overlay_image = cv2.imread(overlay_image_path, cv2.IMREAD_UNCHANGED)
     overlay_image = cv2.resize(overlay_image, (original_image.shape[1], original_image.shape[0]))
 
-    rotation_matrix = cv2.getRotationMatrix2D((overlay_image.shape[1] // 2, overlay_image.shape[0] // 2), angle, 1)
+    # Calculate rotation matrix without cv2
+    angle_rad = np.radians(angle)
+    cos_theta = np.cos(angle_rad)
+    sin_theta = np.sin(angle_rad)
+
+    center_x, center_y = overlay_image.shape[1] // 2, overlay_image.shape[0] // 2
+
+    # Manual construction of the rotation matrix
+    rotation_matrix = np.array([
+        [cos_theta, -sin_theta, (1 - cos_theta) * center_x + sin_theta * center_y],
+        [sin_theta, cos_theta, -sin_theta * center_x + (1 - cos_theta) * center_y]
+    ])
     overlay_image = cv2.warpAffine(overlay_image, rotation_matrix, (overlay_image.shape[1], overlay_image.shape[0]))
 
     alpha_channel = overlay_image[:, :, 3] / 255.0
@@ -404,7 +415,7 @@ def display_image(width, height, np_image, beforeImage, originalImage):
         if event == '-save-':
                 save_file = sg.popup_get_file('Save As', save_as=True, file_types=(("PNG files", "*.png"),))
                 if save_file:
-                    array = np.array(image, dtype=np.uint8)
+                    array = np.array(np_image, dtype=np.uint8)
                     resized_image = Image.fromarray(array)
                     resized_image.save(save_file)
                     sg.popup(f"Image saved to {save_file}")
@@ -438,7 +449,7 @@ def display_image(width, height, np_image, beforeImage, originalImage):
                 contrastChange = int(values['-Contrast-'])
                 ColorPaletteChange = int(values['-ColorPalette-'])
                 if event == 'Apply':
-                    image = initialImage
+                    image = initialImage.copy()
                     if saturationChange > 0 or saturationChange < 0:
                         image = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
                         h, s, v = cv2.split(image)
