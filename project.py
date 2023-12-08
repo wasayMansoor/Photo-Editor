@@ -645,7 +645,7 @@ def automatic_grabcut_with_transparency(person, iterations=5, transparency_facto
     person_rgba[:, :, 3] = alpha_channel
 
     # Save the silhouette image
-    silhouette_path = 'silhouette_centered.jpeg'
+    silhouette_path = 'silhouette_centered.png'
     cv2.imwrite(silhouette_path, person_rgba)
 
 
@@ -676,6 +676,7 @@ def double_exposure(person, background, silhouette_path, output_path):
 
     # Save the resulting image
     cv2.imwrite(output_path, composite_image)
+
     
 def resize_image_aspect_ratio(image, width=None, height=None, inter=cv2.INTER_AREA):
     # Initialize the dimensions of the image to be resized and grab the image size
