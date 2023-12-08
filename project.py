@@ -519,32 +519,33 @@ def display_image(width, height, np_image, beforeImage, originalImage):
 
         if event == 'Resize':
             event, values = windowPopUp.read()
+            newWidth = values['-width-']
+            if newWidth != '':
+                newWidth = int(newWidth)
+            newHeight = values['-height-']
+            if newHeight != '':
+                newHeight = int(newHeight)
             
-            if event == "N|N":
-                tempHeight, tempWidth, channels = np_image.shape
-                newWidth = int(values['-width-'])
-                if values['-Constrained-']:
-                    aspect_ratio = tempWidth / tempHeight
-                    newHeight = int(newWidth / aspect_ratio)
-                else:
-                    newHeight = int(values['-height-'])
-                if newHeight > 0 and newWidth > 0:
-                    np_image = NNResize(newWidth, tempWidth, newHeight, tempHeight, np_image, channels)
-                    window.close()
-                    display_image(width, height, np_image, beforeImage, originalImage)
-                
-            if event == "Bilinear":
-                tempheight, tempwidth, channels = np_image.shape
-                newWidth = int(values['-width-'])
-                if values['-Constrained-']:
-                    aspect_ratio = tempwidth / tempheight
-                    newHeight = int(newWidth / aspect_ratio)
-                else:
-                    newHeight = int(values['-height-'])
-                if newHeight > 0 and newWidth > 0:
-                    np_image = BilinearResize(newWidth, tempWidth, newHeight, tempHeight, np_image, channels)
-                    window.close()
-                    display_image(width, height, np_image, beforeImage, originalImage)
+            if (newHeight != '' and newWidth != '') or (newWidth != '' and values['-Constrained-']):
+                if event == "N|N":
+                    tempHeight, tempWidth, channels = np_image.shape
+                    if values['-Constrained-']:
+                        aspect_ratio = tempWidth / tempHeight
+                        newHeight = int(newWidth / aspect_ratio)
+                    if newHeight > 0 and newWidth > 0:
+                        np_image = NNResize(newWidth, tempWidth, newHeight, tempHeight, np_image, channels)
+                        window.close()
+                        display_image(width, height, np_image, beforeImage, originalImage)
+                    
+                if event == "Bilinear":
+                    tempheight, tempwidth, channels = np_image.shape
+                    if values['-Constrained-']:
+                        aspect_ratio = tempwidth / tempheight
+                        newHeight = int(newWidth / aspect_ratio)
+                    if newHeight > 0 and newWidth > 0:
+                        np_image = BilinearResize(newWidth, tempWidth, newHeight, tempHeight, np_image, channels)
+                        window.close()
+                        display_image(width, height, np_image, beforeImage, originalImage)
                 
             if event == sg.WINDOW_CLOSED or event == 'PopUpExit':
                 window.close()
