@@ -495,7 +495,12 @@ def display_image(width, height, np_image, beforeImage, originalImage):
             FilterPopUp = sg.Window('Dust&Scratches', layout4, finalize=True)
             FilterPopUp['-IMAGE-'].draw_image(data=initialImageData, location=(0, height))
             
-            paths =['dust&scratches/overlay1.png', 'dust&scratches/overlay2.png', 'dust&scratches/overlay3.png', 'dust&scratches/overlay4.png', 'dust&scratches/overlay5.png']
+            paths =['dust&scratches/overlay1.png', 
+                    'dust&scratches/overlay2.png', 
+                    'dust&scratches/overlay3.png', 
+                    'dust&scratches/overlay4.png', 
+                    'dust&scratches/overlay5.png']
+            
             while True:
                 event, values = FilterPopUp.read()
                 opacity = int(values['-Opacity-'])
@@ -504,29 +509,18 @@ def display_image(width, height, np_image, beforeImage, originalImage):
                     np_image = initialImage.copy()
                     imageData = np_im_to_data(np_image)
                     FilterPopUp['-IMAGE-'].draw_image(data=imageData, location=(width, height))
-                if event == 'Filter1':
-                    np_image = add_scratches_and_dust(np_image, paths[0], opacity/100, angle)
-                    imageData = np_im_to_data(np_image)
-                    FilterPopUp['-IMAGE-'].draw_image(data=imageData, location=(width, height))
-                if event == 'Filter2':
-                    np_image = add_scratches_and_dust(np_image, paths[1], opacity/100, angle)
-                    imageData = np_im_to_data(np_image)
-                    FilterPopUp['-IMAGE-'].draw_image(data=imageData, location=(width, height))
-                if event == 'Filter3':
-                    np_image = add_scratches_and_dust(np_image, paths[2], opacity/100, angle)
-                    imageData = np_im_to_data(np_image)
-                    FilterPopUp['-IMAGE-'].draw_image(data=imageData, location=(width, height))
-                if event == 'Filter4':
-                    np_image = add_scratches_and_dust(np_image, paths[3], opacity/100, angle)
-                    imageData = np_im_to_data(np_image)
-                    FilterPopUp['-IMAGE-'].draw_image(data=imageData, location=(width, height))
-                if event == 'Filter5':
-                    np_image = add_scratches_and_dust(np_image, paths[4], opacity/100, angle)
-                    imageData = np_im_to_data(np_image)
-                    FilterPopUp['-IMAGE-'].draw_image(data=imageData, location=(width, height))
                 if event == 'Quit':
                     FilterPopUp.close()
                     display_image(width, height, np_image, beforeImage, originalImage)
+                filter_events = ['Filter1', 'Filter2', 'Filter3', 'Filter4', 'Filter5']
+                for i, filter_event in enumerate(filter_events):
+                    if event == filter_event:
+                        np_image = add_scratches_and_dust(np_image, paths[i], opacity/100, angle)
+                        imageData = np_im_to_data(np_image)
+                        FilterPopUp['-IMAGE-'].draw_image(data=imageData, location=(width, height))
+
+                    
+                    
         if event == '-dexposure-':
             
             window.close()
