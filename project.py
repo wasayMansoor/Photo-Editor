@@ -843,27 +843,31 @@ def resize_image_aspect_ratio(image, width=None, height=None, inter=cv2.INTER_AR
 
 ##Main
 def main():
-    parser = argparse.ArgumentParser(description='A simple image viewer.')
-    parser.add_argument('file', action='store', help='Image file.')
-    args = parser.parse_args()
+    # parser = argparse.ArgumentParser(description='A simple image viewer.')
+    # parser.add_argument('file', action='store', help='Image file.')
+    # args = parser.parse_args()
 
-    print(f'Loading {args.file} ... ', end='')
-    image = cv2.imread(args.file)
-    beforeImage = cv2.imread(args.file)
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    
-    print(f'{image.shape}')
+    # print(f'Loading {args.file} ... ', end='')
+    file_path = sg.popup_get_file('Select Image', file_types=(("Image Files", "*.png;*.jpg;*.jpeg;*.bmp"),))
+                
+    # Check if a file was selected
+    if file_path:
+        image = cv2.imread(file_path)
+        beforeImage = cv2.imread(file_path)
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        
+        print(f'{image.shape}')
 
-    print(f'Resizing the image to 480x640 ...', end='')
-    width = 640
-    scale = width/image.shape[1]
-    height = int(image.shape[0]*scale)
-    beforeImage = cv2.resize(beforeImage, (width,height), interpolation=cv2.INTER_LINEAR)
-    image = cv2.resize(image, (width,height), interpolation=cv2.INTER_LINEAR)
-    originalImage = image.copy()
-    print(f'{image.shape}')
+        print(f'Resizing the image to 480x640 ...', end='')
+        width = 640
+        scale = width/image.shape[1]
+        height = int(image.shape[0]*scale)
+        beforeImage = cv2.resize(beforeImage, (width,height), interpolation=cv2.INTER_LINEAR)
+        image = cv2.resize(image, (width,height), interpolation=cv2.INTER_LINEAR)
+        originalImage = image.copy()
+        print(f'{image.shape}')
 
-    display_image(width, height, image, beforeImage, originalImage)
+        display_image(width, height, image, beforeImage, originalImage)
 
 if __name__ == '__main__':
     main()
