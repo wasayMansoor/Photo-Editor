@@ -297,7 +297,7 @@ def resetLayout5(width, height):
          sg.Button('Apply'),
          sg.Button('Quit')
         ],
-        [sg.Text('Grain Intensity:', size=(10, 1)), sg.Slider(range=(0,100), default_value=0, orientation='h',size=(50,30), key='-GIntensity-')],
+        [sg.Text('Grain Intensity:', size=(15, 1)), sg.Slider(range=(0,100), default_value=0, orientation='h',size=(50,30), key='-GIntensity-')],
     ]
     return layout5
 
@@ -650,8 +650,6 @@ def display_image(width, height, np_image, beforeImage, originalImage):
                 if event == 'Quit':
                     FilterPopUp.close()
                     display_image(width, height, np_image, beforeImage, originalImage)
-
-
         
         if event == '-scratch-':
             window.close()
