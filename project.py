@@ -538,9 +538,9 @@ def display_image(width, height, np_image, beforeImage, originalImage):
                         display_image(width, height, np_image, beforeImage, originalImage)
                     
                 if event == "Bilinear":
-                    tempheight, tempwidth, channels = np_image.shape
+                    tempHeight, tempWidth, channels = np_image.shape
                     if values['-Constrained-']:
-                        aspect_ratio = tempwidth / tempheight
+                        aspect_ratio = tempWidth / tempHeight
                         newHeight = int(newWidth / aspect_ratio)
                     if newHeight > 0 and newWidth > 0:
                         np_image = BilinearResize(newWidth, tempWidth, newHeight, tempHeight, np_image, channels)
