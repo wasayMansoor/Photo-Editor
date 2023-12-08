@@ -344,6 +344,119 @@ def paint(image, num_pixels=10000, stroke_length_range=(25, 30), stroke_width_ra
         cv2.line(image, (start_x, start_y), (end_x, end_y), color, stroke_width)
     return image
 
+def resize_with_padding(img, background_width, background_height):
+    # Get the dimensions of the original image
+    original_height, original_width = img.shape[:2]
+
+    # Calculate the aspect ratio of the original image
+    aspect_ratio = original_width / original_height
+
+    # Calculate the new dimensions while maintaining the aspect ratio
+    if aspect_ratio >= 1:
+        new_width = background_width
+        new_height = int(new_width / aspect_ratio)
+    else:
+        new_height = background_height
+        new_width = int(new_height * aspect_ratio)
+
+    # Resize the image using the calculated dimensions
+    resized_img = cv2.resize(img, (new_width, new_height), interpolation=cv2.INTER_LINEAR)
+
+    # Create a blank canvas with the target size and 3 channels (RGB)
+    img_with_padding = np.zeros((background_height, background_width, 3), dtype=np.uint8)
+
+    # Calculate the position to paste the resized image
+    x_offset = (background_width - new_width) // 2
+    y_offset = (background_height - new_height) // 2
+
+    # Paste the resized image onto the canvas
+    img_with_padding[y_offset:y_offset + new_height, x_offset:x_offset + new_width] = cv2.cvtColor(resized_img, cv2.COLOR_GRAY2BGR)
+
+    return img_with_padding
+
+def perform_grabcut(img, threshold1, threshold2):
+    # Load the image
+    
+    # Apply Canny edge detection
+    edges = cv2.Canny(img, threshold1, threshold2)
+    
+    # Define a kernel for morphological operations
+    kernel = np.ones((5,5), np.uint8)
+    
+    # Apply morphological transformations
+    closing = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, kernel, iterations=3)
+    erosion = cv2.morphologyEx(closing, cv2.MORPH_ERODE, kernel, iterations=1)
+    
+    # Initialize mask for GrabCut
+    mask = np.zeros(img.shape[:2], np.uint8)
+    mask[:] = 2  # Possible background areas
+    mask[erosion == 255] = 1  # Probable foreground areas
+    
+    # Background and foreground models for GrabCut
+    bgdmodel = np.zeros((1, 65), np.float64)
+    fgdmodel = np.zeros((1, 65), np.float64)
+    
+    # Apply GrabCut with the mask
+    cv2.grabCut(img, mask, None, bgdmodel, fgdmodel, 5, cv2.GC_INIT_WITH_MASK)
+    
+    # Final mask where 0 and 2 are background, 1 and 3 are foreground
+    mask2 = np.where((mask == 2)|(mask == 0), 0, 1).astype('uint8')
+    # Apply the mask to the image to get the result
+    result_img = img * mask2[:, :, np.newaxis]
+    return result_img, mask2
+
+def apply_alpha_mask(image, mask):
+    # Create an alpha channel based on the mask
+    alpha_channel = np.zeros(image.shape[:2], dtype=image.dtype)  # Initialize alpha channel with zeros (fully transparent)
+    alpha_channel[mask == 1] = 125  # Where mask is 1 (foreground), set alpha channel to 255 (fully opaque)
+    
+    # Stack the color channels and alpha channel together
+    rgba_image = cv2.merge((*cv2.split(image)[:3], alpha_channel))
+    return rgba_image
+
+def overlay_mask_on_background(background, updatedMask, output_path, alpha=0.5):
+    # Load the background and updatedMask images
+
+
+    # Make sure both images have the same dimensions
+    background_height, background_width = background.shape[:2]
+    updatedMask = cv2.resize(updatedMask, (background_width, background_height))
+
+    # Blend the two images
+    result = cv2.addWeighted(background, 1 - alpha, updatedMask, alpha, 0)
+
+    # Save the result
+    cv2.imwrite(output_path, result)
+    
+def invert(background,mask):
+    updated_mask = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)  # Read the mask in grayscale
+    
+    
+    # Create an alpha channel based on the updated mask
+    alpha_channel = np.where(updated_mask == 0, 255, 0).astype(np.uint8)  # Opaque where mask is black
+    
+    # Merge the alpha channel with the background image
+    rgba_background = cv2.merge((*cv2.split(background)[:3], alpha_channel))
+    
+    # Extract the alpha channel from the rgba image
+    alpha_channel = rgba_background[:, :, 3]
+    
+    # Invert the alpha channel to flip transparency and opacity
+    inverted_alpha = 255 - alpha_channel
+    
+    # Replace the alpha channel in the image with the inverted alpha
+    rgba_background[:, :, 3] = inverted_alpha
+      
+    # Create a background image of the same size -- fill it with white color for example
+    background = np.ones_like(rgba_background) * 255
+    
+    # Extract the alpha channel from the foreground image
+    alpha = rgba_background[:, :, 3] / 255.0
+    
+    # Blend the foreground with the background based on the alpha channel
+    for c in range(0, 3):
+        background[:, :, c] = alpha * rgba_background[:, :, c] + (1 - alpha) * background[:, :, c]
+    return background
 
 
 
@@ -591,6 +704,11 @@ def display_image(width, height, np_image, beforeImage, originalImage):
 
             person_image_data = np_im_to_data(resized_image_person)
             background_image_data = np_im_to_data(resized_image_background)
+            
+            
+            
+            
+            
                 # Update the layout with the image data
             layout = [
                     [sg.Button('Load Person'), sg.Button('Load Background'), sg.Button('Double Exposure')],
@@ -612,35 +730,77 @@ def display_image(width, height, np_image, beforeImage, originalImage):
                 if event == sg.WIN_CLOSED:
                     break
                 elif event == 'Load Person':
-                    # Implement functionality to load person image
-                    # For example, using sg.popup_get_file() to choose a file
-                    # Then update the '-PERSON_IMAGE-' element with the chosen image
-                    pass
+                    # Open a file dialog to choose an image
+                    file_path = sg.popup_get_file('Select Person Image', file_types=(("Image Files", "*.png;*.jpg;*.jpeg;*.bmp"),))
+                
+                    # Check if a file was selected
+                    if file_path:
+                        # Load the image
+                        person = cv2.imread(file_path)
+                
+                        # Check if the image was loaded successfully
+                        if person is not None:
+                            # Convert the image to a format suitable for displaying in PySimpleGUI
+                            resized_image_person = resize_image_aspect_ratio(person,height=250,width=250)  # Resize by width, maintaining aspect ratio
+                            person_image_rgb = cv2.cvtColor(resized_image_person, cv2.COLOR_BGR2RGB)
+                            person_image_data = np_im_to_data(person_image_rgb)
+                
+                            # Update the GUI element to display the loaded image
+                            window['-PERSON_IMAGE-'].update(data=person_image_data)
+                        else:
+                            sg.popup_error('Unable to load image.', title='Error')
+
                 elif event == 'Load Background':
-                    # Implement functionality to load background image
-                    # Similar to the above
-                    pass
+                    # Open a file dialog to choose an image
+                    file_path = sg.popup_get_file('Select Background Image', file_types=(("Image Files", "*.png;*.jpg;*.jpeg;*.bmp"),))
+                
+                    # Check if a file was selected
+                    if file_path:
+                        # Load the image
+                        background = cv2.imread(file_path)
+                
+                        # Check if the image was loaded successfully
+                        if background is not None:
+                            # Convert the image to a format suitable for displaying in PySimpleGUI
+                            resized_image_background = resize_image_aspect_ratio(background,height=250,width=250)  # Resize by width, maintaining aspect ratio
+                            background_image_rgb = cv2.cvtColor(resized_image_background, cv2.COLOR_BGR2RGB)
+                            background_image_data = np_im_to_data(background_image_rgb)
+                
+                            # Update the GUI element to display the loaded image
+                            window['-BACKGROUND_IMAGE-'].update(data=background_image_data)
+                        else:
+                            sg.popup_error('Unable to load image.', title='Error')
                 elif event == 'Double Exposure':
                     
                     # Implement the double exposure effect
-                    person_transparent = automatic_grabcut_with_transparency(person)
-                    silhouette_image_path = 'silhouette_centered.png'  # Update this path if needed
-                    output_feature_preserved_path = 'doubleExposure.png'  # Update this path if needed
-                    double_exposure(person_transparent, background, silhouette_image_path, output_feature_preserved_path)
-                    
-                    # Read the resulting image
-                    double_exposure_image = cv2.imread(output_feature_preserved_path)
-                    double_exposure_image = cv2.cvtColor(double_exposure_image, cv2.COLOR_BGR2RGB)  # Ensure it's in RGB
-                    
-                    # Convert the image to Image data for 
-                    resized_image_dexposure = resize_image_aspect_ratio(double_exposure_image,height=250,width=250)  # Resize by width, maintaining aspect ratio
+                    # Step 1: Perform GrabCut
+                    cut_image, cut_mask = perform_grabcut(person, 80, 150)
+                
+                    # Step 2: Resize the Mask
+                    target_size = (background.shape[1], background.shape[0])
+                    resized_mask = resize_with_padding(cut_mask * 255, target_size[0], target_size[1])
 
-                    double_exposure_image_data = np_im_to_data(resized_image_dexposure)
+                
+                    # Step 3: Overlay Mask on Background
+                    overlay_mask_on_background(background, resized_mask, "final_result.png", alpha=0.5)
+                    
+                    # Step 4: Invert the mask
+                    print("Shape of double_exposure:", background.shape)
+                    print("Shape of double_exposure:", resized_mask.shape)
+
+                    double_exposure= invert(background,resized_mask)
+                    double_exposure = resize_image_aspect_ratio(double_exposure,height=250,width=250)  # Resize by width, maintaining aspect ratio
+                    print("Shape of double_exposure:", double_exposure.shape)
+                    print("hi")
+                    double_exposure = np_im_to_data(double_exposure)
+
+                    #double_exposure_image_data = np_im_to_data(double_exposure)
+
                     layout = [
                             [sg.Button('Load Person'), sg.Button('Load Background'), sg.Button('Double Exposure')],
                             [sg.Image(data=person_image_data, key='-PERSON_IMAGE-'),
                              sg.Image(data=background_image_data, key='-BACKGROUND_IMAGE-'),
-                             sg.Image(data=double_exposure_image_data, key='-DOUBLE_EXPOSURE_IMAGE-')],
+                             sg.Image(data=double_exposure, key='-DOUBLE_EXPOSURE_IMAGE-')],
                              
 
                             ]
@@ -655,70 +815,6 @@ def display_image(width, height, np_image, beforeImage, originalImage):
 
     window.close() 
 
-def automatic_grabcut_with_transparency(person, iterations=5, transparency_factor=0.5):
-    # Convert to grayscale and apply Gaussian blur for noise reduction
-    gray = cv2.cvtColor(person, cv2.COLOR_BGR2GRAY)
-    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-
-    # Use Otsu's method to find a threshold for Canny automatically
-    ret, _ = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    lower = float(0.5 * ret)
-    upper = float(ret)
-
-    # Use Canny edge detection
-    edges = cv2.Canny(blurred, lower, upper)
-
-    # Dilate the edges
-    kernel = np.ones((5, 5), np.uint8)
-    dilated_edges = cv2.dilate(edges, kernel, iterations=1)
-
-    # Initialize grabCut's mask and apply grabCut
-    mask = np.zeros(person.shape[:2], np.uint8)
-    x, y, w, h = cv2.boundingRect(dilated_edges)
-    rect = (x, y, w, h)
-    bgdModel = np.zeros((1, 65), np.float64)
-    fgdModel = np.zeros((1, 65), np.float64)
-    cv2.grabCut(person, mask, rect, bgdModel, fgdModel, iterations, cv2.GC_INIT_WITH_RECT)
-
-    # Modify the mask to create a binary mask of the foreground and apply transparency
-    mask = np.where((mask == 2) | (mask == 0), 0, 1).astype('uint8')
-    person_rgba = cv2.cvtColor(person, cv2.COLOR_BGR2BGRA)
-    alpha_channel = mask * 255
-    alpha_channel = (alpha_channel * transparency_factor).astype(person_rgba.dtype)
-    person_rgba[:, :, 3] = alpha_channel
-
-    # Save the silhouette image
-    silhouette_path = 'silhouette_centered.png'
-    cv2.imwrite(silhouette_path, person_rgba)
-
-
-    return person_rgba
-
-def double_exposure(person, background, silhouette_path, output_path):
-    # Load the silhouette and check if it's loaded correctly
-    silhouette = cv2.imread(silhouette_path, cv2.IMREAD_UNCHANGED)
-    if silhouette is None:
-        raise ValueError("Silhouette image not loaded correctly.")
-
-    # Resize images to match the size of the silhouette, only if necessary
-    if person.shape[:2] != silhouette.shape[:2]:
-        person = cv2.resize(person, (silhouette.shape[1], silhouette.shape[0]), interpolation=cv2.INTER_AREA)
-    if background.shape[:2] != silhouette.shape[:2]:
-        background = cv2.resize(background, (silhouette.shape[1], silhouette.shape[0]), interpolation=cv2.INTER_AREA)
-
-    # Extract the alpha channel from the silhouette and apply Gaussian blurring
-    alpha_channel = silhouette[:, :, 3].astype(float) / 255
-    blurred_gradient_mask = cv2.GaussianBlur(alpha_channel, (7, 7), 0)
-    blurred_gradient_mask = np.clip(blurred_gradient_mask + 0.3, 0, 1)
-
-    # Create a composite image using vectorized operations
-    composite_image = np.zeros_like(silhouette)
-    composite_image[..., :3] = blurred_gradient_mask[..., None] * background[..., :3] + \
-                               (1 - blurred_gradient_mask[..., None]) * person[..., :3]
-    composite_image[..., 3] = silhouette[..., 3]  # Preserve the original silhouette alpha channel
-
-    # Save the resulting image
-    cv2.imwrite(output_path, composite_image)
 
     
 def resize_image_aspect_ratio(image, width=None, height=None, inter=cv2.INTER_AREA):
