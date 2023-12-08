@@ -174,18 +174,15 @@ def add_scratches_and_dust(original_image, overlay_image_path, opacity, angle):
     overlay_image = cv2.imread(overlay_image_path, cv2.IMREAD_UNCHANGED)
     overlay_image = cv2.resize(overlay_image, (original_image.shape[1], original_image.shape[0]))
 
-    # Calculate rotation matrix without cv2
     angle_rad = np.radians(angle)
     cos_theta = np.cos(angle_rad)
     sin_theta = np.sin(angle_rad)
-
     center_x, center_y = overlay_image.shape[1] // 2, overlay_image.shape[0] // 2
-
-    # Manual construction of the rotation matrix
     rotation_matrix = np.array([
         [cos_theta, -sin_theta, (1 - cos_theta) * center_x + sin_theta * center_y],
         [sin_theta, cos_theta, -sin_theta * center_x + (1 - cos_theta) * center_y]
     ])
+    
     overlay_image = cv2.warpAffine(overlay_image, rotation_matrix, (overlay_image.shape[1], overlay_image.shape[0]))
 
     alpha_channel = overlay_image[:, :, 3] / 255.0
@@ -495,7 +492,7 @@ def display_image(width, height, np_image, beforeImage, originalImage):
             window.close()
             initialImage = np_image.copy()
             initialImageData = np_im_to_data(initialImage)
-            FilterPopUp = sg.Window('Filter', layout4, finalize=True)
+            FilterPopUp = sg.Window('Dust&Scratches', layout4, finalize=True)
             FilterPopUp['-IMAGE-'].draw_image(data=initialImageData, location=(0, height))
             
             paths =['dust&scratches/overlay1.png', 'dust&scratches/overlay2.png', 'dust&scratches/overlay3.png', 'dust&scratches/overlay4.png', 'dust&scratches/overlay5.png']
