@@ -785,6 +785,7 @@ def display_image(width, height, np_image, beforeImage, originalImage):
                     print("Shape of double_exposure:", resized_mask.shape)
 
                     double_exposure= invert(background,resized_mask)
+                    double_exposure = cv2.cvtColor(double_exposure, cv2.COLOR_BGR2RGB)
                     double_exposure = resize_image_aspect_ratio(double_exposure,height=250,width=250)  # Resize by width, maintaining aspect ratio
                     print("Shape of double_exposure:", double_exposure.shape)
                     print("hi")
