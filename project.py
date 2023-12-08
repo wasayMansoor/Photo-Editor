@@ -219,7 +219,7 @@ def resetLayout1(width, height):
              sg.Button('Paint', size=(10, 2)),
              sg.Button('Scratch and Dust', key='-scratch-', size=(10, 2)),
              sg.Button('Double Exposure', key='-dexposure-', size=(10, 2)),
-
+             sg.Button('Grain', key='-noise-', size=(10,2)),
              sg.Button('Save Image', key='-save-', size=(10, 2)),
              sg.Button('Load Image', key='-load-', size=(10, 2)),
             ],
@@ -280,6 +280,32 @@ def resetLayout4(width, height):
         [sg.Text('Angle:', size=(10, 1)), sg.Slider(range=(0,360), default_value=0, orientation='h',size=(50,30), key='-Angle-')]
     ]
     return layout4
+
+def resetLayout5(width, height):
+    layout5 = [
+        [sg.Graph(
+            canvas_size=(width*2, height),
+            graph_bottom_left=(0, 0),
+            graph_top_right=(width*2, height),
+            key='-IMAGE-',
+            background_color='white',
+            change_submits=True,
+            drag_submits=True
+        )],
+        [ 
+         sg.Button('Original'),
+         sg.Button('Apply'),
+         sg.Button('Quit')
+        ],
+        [sg.Text('Grain Intensity:', size=(10, 1)), sg.Slider(range=(0,100), default_value=0, orientation='h',size=(50,30), key='-GIntensity-')],
+    ]
+    return layout5
+
+def grain(image, intensity):
+    h, w, _ = image.shape
+    noise = np.random.randn(h, w, 3) * intensity
+    noisy_image = np.clip(image + noise, 0, 255).astype(np.uint8)
+    return noisy_image
 
 def compute_gradients(image):
     gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
@@ -344,6 +370,7 @@ def display_image(width, height, np_image, beforeImage, originalImage):
     
     layout3 = resetLayout3(width, height)
     layout4 = resetLayout4(width, height)
+    layout5 = resetLayout5(width, height)
     
     
     while True:
@@ -486,6 +513,31 @@ def display_image(width, height, np_image, beforeImage, originalImage):
             np_image = paint(np_image, num_pixels=5000, stroke_length_range=(5, 10), stroke_width_range=(1, 2), gradient_threshold=50)
             image_data = np_im_to_data(np_image)
             window['-IMAGE-'].draw_image(data=image_data, location=(width, height))
+            
+        if event == '-noise-':
+            initialImage = np_image.copy()
+            initialImageData = np_im_to_data(initialImage)
+            
+            window.close()
+            FilterPopUp = sg.Window('Grain', layout5, finalize=True)
+            FilterPopUp['-IMAGE-'].draw_image(data=initialImageData, location=(0, height))
+            
+            while True:
+                event, values = FilterPopUp.read()
+                gIntensity = int(values['-GIntensity-'])
+                if event == 'Apply':
+                    np_image = initialImage.copy()
+                    np_image = grain(np_image, gIntensity)
+                    imageData = np_im_to_data(np_image)
+                    FilterPopUp['-IMAGE-'].draw_image(data=imageData, location=(width, height))
+                if event == 'Original':
+                    np_image = initialImage.copy()
+                    imageData = np_im_to_data(np_image)
+                    FilterPopUp['-IMAGE-'].draw_image(data=imageData, location=(width, height))
+                if event == 'Quit':
+                    FilterPopUp.close()
+                    display_image(width, height, np_image, beforeImage, originalImage)
+
 
         
         if event == '-scratch-':
