@@ -1,2 +1,3 @@
 # Photo Editor
- Photo editing software
+Full Report included in the repository under Report.pdf
+
